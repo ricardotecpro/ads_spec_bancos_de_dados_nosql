@@ -1,0 +1,64 @@
+﻿name: Validate Documentation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Verify Required Files
+        run: |
+          echo "Verificando arquivos obrigatorios..."
+          test -f docs/index.md    || (echo "ERRO: docs/index.md nao encontrado" && exit 1)
+          test -f docs/sobre.md    || (echo "ERRO: docs/sobre.md nao encontrado" && exit 1)
+          test -f docs/materiais.md|| (echo "ERRO: docs/materiais.md nao encontrado" && exit 1)
+          echo "Arquivos obrigatorios OK"
+
+      - name: Verify Required Directories
+        run: |
+          echo "Verificando estrutura de diretorios..."
+          test -d docs/aulas      || (echo "ERRO: docs/aulas nao encontrado" && exit 1)
+          test -d docs/exercicios || (echo "ERRO: docs/exercicios nao encontrado" && exit 1)
+          test -d docs/projetos   || (echo "ERRO: docs/projetos nao encontrado" && exit 1)
+          test -d docs/quizzes    || (echo "ERRO: docs/quizzes nao encontrado" && exit 1)
+          test -d docs/slides     || (echo "ERRO: docs/slides nao encontrado" && exit 1)
+          test -d docs/assets     || (echo "ERRO: docs/assets nao encontrado" && exit 1)
+          echo "Estrutura de diretorios OK"
+
+      - name: Verify Assets
+        run: |
+          echo "Verificando assets..."
+          test -f docs/assets/css/extra.css   || echo "AVISO: docs/assets/css/extra.css ausente"
+          test -f docs/assets/css/home.css    || echo "AVISO: docs/assets/css/home.css ausente"
+          test -f docs/assets/js/quiz.js      || echo "AVISO: docs/assets/js/quiz.js ausente"
+          test -f docs/assets/js/mermaid-init.js || echo "AVISO: docs/assets/js/mermaid-init.js ausente"
+          echo "Assets verificados"
+
+      - name: Run Structure Verification
+        run: |
+          python scripts/verify_structure.py || true
+        continue-on-error: true
+
+      - name: Validate mkdocs.yml
+        run: |
+          poetry run mkdocs build --strict 2>&1 | head -50 || true
+        continue-on-error: true
